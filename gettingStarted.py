@@ -9,6 +9,7 @@ from pinatapy import PinataPy
 import base58
 import binascii
 import requests
+from algosdk.future import transaction
 
 
 
@@ -103,18 +104,50 @@ def first_transaction_example(private_key, my_address, p_url, p_metadataUint8Arr
     # aux = json.dumps(confirmed_txn, indent=4)
     print("created asset id:",confirmed_txn["asset-index"])
 
-    # unsigned_optin = algosdk.future.transaction.AssetTransferTxn(
-    #         sender=sender_address,
-    #         sp=params,
-    #         receiver=receiver_address,
-    #         amt=int(0),
-    #         index=confirmed_txn["asset-index"],
-    #         note=None
-    #     )
+    recibe_nft = "YEUJW5EPVUDGXYG67LWCL376GMHYKORJECSB2JAW5WY4ESL3CEHPRSEWX4"
+    recibeNFT_private_key = mnemonic.to_private_key(creator_mnemonic)
 
+    unsigned_optin = algosdk.future.transaction.AssetTransferTxn(
+            sender=recibe_nft,
+            sp=params,
+            receiver=recibe_nft,
+            amt=int(0),
+            index=confirmed_txn["asset-index"],
+            note=None
+        )
 
     
 
+    unsigned_txNFT = algosdk.future.transaction.AssetTransferTxn(
+            sender=my_address,
+            sp=params,
+            receiver=recibe_nft,
+            amt=int(1),
+            index=confirmed_txn["asset-index"],
+            note=None
+        )
+
+        
+
+    transaction.assign_group_id([unsigned_optin, unsigned_txNFT])
+    signed_optin_txn = unsigned_optin.sign(recibeNFT_private_key)
+    signed_txnNFT = unsigned_txNFT.sign(private_key) 
+
+    algod_client.send_transactions([signed_optin_txn, signed_txnNFT])
+    # wait_for_confirmation(algod_client, signed_optin_txn.get_txid(), 4)   
+
+
+    # wait for confirmation 
+    try:
+        confirmed_txn = wait_for_confirmation(algod_client, signed_optin_txn.get_txid(), 4)  
+    except Exception as err:
+        print(err)
+        return
+
+    print("Atomic Transaction: {}".format(
+        json.dumps(confirmed_txn, indent=4)))
+    
+    
     # print("Decoded note: {}".format(base64.b64decode(
     #     confirmed_txn["txn"]["txn"]["note"]).decode()))
 
